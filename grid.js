@@ -3,15 +3,20 @@ const ctx = canvas.getContext('2d');
 
 // Configuration
 const dotSpacing = 24;
-const baseRadius = 1;
-const maxBoost = 1.0; 
-const baseSigma = 30;
-const speed = 0.16; 
+const scale = 1.0;
+const baseIntensity = 1.5;
+const sigma = 40;
+const decay = 3.0;
+const growth = 6.0;
+const clickBoost = 2;
+
+let rows = Math.floor(window.innerHeight / dotSpacing) + 1;
+let cols = Math.floor(window.innerWidth / dotSpacing) + 1;
+
+let intensities = new Float32Array(rows * cols)
+intensities.fill(0)
 
 let mouse = { x: -1000, y: -1000 };
-let viewMouse = { x: -1000, y: -1000 };
-let prevMouse = { x: 0, y: 0 };
-let currentSigma = baseSigma;
 
 // Existing mouse listener
 window.addEventListener('mousemove', (e) => {
@@ -20,69 +25,78 @@ window.addEventListener('mousemove', (e) => {
 
 // New Touch listeners
 window.addEventListener('touchstart', (e) => {
-    // We use e.touches[0] because mobile can track multiple fingers
+    isPressed = true;
     updateCoordinates(e.touches[0].clientX, e.touches[0].clientY);
 });
+window.addEventListener('touchend', () => isPressed = false);
+
+let mousePressed = false
+window.addEventListener('mousedown', () => mousePressed = true);
+window.addEventListener('mouseup', () => mousePressed = false);
 
 function updateCoordinates(x, y) {
     mouse.x = x;
     mouse.y = y;
-    console.log(x, y)
 }
 
 // Handle Resize (Retina/High-DPI Support)
 function resize() {
     const dpr = window.devicePixelRatio || 1;
+
     canvas.width = window.innerWidth * dpr;
     canvas.height = window.innerHeight * dpr;
+
     ctx.scale(dpr, dpr);
+
     canvas.style.width = window.innerWidth + 'px';
     canvas.style.height = window.innerHeight + 'px';
+
+    rows = Math.floor(window.innerHeight / dotSpacing) + 1;
+    cols = Math.floor(window.innerWidth / dotSpacing) + 1;
+    intensities = new Float32Array(rows * cols)
+    intensities.fill(0)
 }
 
 window.addEventListener('resize', resize);
 resize();
 
-function draw() {
+let lastTime = 0
+
+function draw(t) {
+    if (!lastTime) lastTime = t
+    let dt = (t - lastTime) / 1000
+    if (dt > 0.1) dt = 0.016 // Clamp
+    console.log(dt)
+    lastTime = t
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const dxVel = mouse.x - prevMouse.x;
-    const dyVel = mouse.y - prevMouse.y;
-    const velocity = Math.sqrt(dxVel * dxVel + dyVel * dyVel);
-    
-    const targetSigma = baseSigma + Math.min(velocity * 1.5, 200);
-    currentSigma += (targetSigma - currentSigma) * 0.1;
-
-    viewMouse.x += (mouse.x - viewMouse.x) * speed;
-    viewMouse.y += (mouse.y - viewMouse.y) * speed;
 
     const gridColor = getComputedStyle(document.body)
         .getPropertyValue('--grid-color').trim();
 
     ctx.fillStyle = gridColor;
 
-    // 5. Render Gaussian Grid
-    for (let x = 0; x < window.innerWidth; x += dotSpacing) {
-        for (let y = 0; y < window.innerHeight; y += dotSpacing) {
-            const dx = x - viewMouse.x;
-            const dy = y - viewMouse.y;
-            const d2 = dx * dx + dy * dy;
+    for (let i = 0; i < intensities.length; i++) {
+        const x = (i % cols) * dotSpacing
+        const y = ((i / cols) | 0) * dotSpacing
 
-            // Gaussian Function: r = r0 + boost * exp(-d^2 / 2σ^2)
-            const intensity = Math.exp(-d2 / (2 * currentSigma * currentSigma));
-            const r = baseRadius + maxBoost * intensity;
+        const dx = x - mouse.x;
+        const dy = y - mouse.y;
+        const d2 = dx * dx + dy * dy;
 
-            if (r > 0.1) { // Performance optimization: don't draw invisible dots
-                ctx.beginPath();
-                ctx.arc(x, y, r, 0, Math.PI * 2);
-                ctx.fill();
-            }
+        const gaussian = Math.exp(-d2 / (2 * sigma * sigma * (mousePressed ? clickBoost : 1)));
+
+        intensities[i] += (growth * (mousePressed ? clickBoost : 1) * gaussian - decay * (intensities[i] - baseIntensity)) * dt
+
+        r = intensities[i] * scale
+        if (r > 0.1) { // Performance optimization: don't draw invisible dots
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 
-    prevMouse.x = mouse.x;
-    prevMouse.y = mouse.y;
     requestAnimationFrame(draw);
 }
 
-draw();
+requestAnimationFrame(draw);

@@ -5,10 +5,10 @@ const ctx = canvas.getContext('2d');
 const dotSpacing = 24;
 const scale = 1.0;
 const baseIntensity = 1.5;
-const sigma = 40;
-const decay = 3.0;
-const growth = 6.0;
-const clickBoost = 2;
+const sigma = 30;
+const decay = 2.5;
+const growth = 5.0;
+const clickBoost = 1.5;
 
 let rows = Math.floor(window.innerHeight / dotSpacing) + 1;
 let cols = Math.floor(window.innerWidth / dotSpacing) + 1;

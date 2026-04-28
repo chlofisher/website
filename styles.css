@@ -18,7 +18,7 @@
     --highlight-color: #2e93d1;
     --theme-toggle-color: #8B8BDB;
     --code-bg: #2e2e2e;
-    --grid-color: rgba(255, 255, 255, 0.08); 
+    --grid-color: rgba(255, 255, 255, 0.13); 
 }
 
 *::selection {
